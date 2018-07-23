@@ -16,6 +16,8 @@ package kvstore
 
 import (
 	"sync"
+
+	"github.com/cilium/cilium/pkg/lock"
 )
 
 // EventType defines the type of watch event that occurred
@@ -79,7 +81,10 @@ type Watcher struct {
 	prefix    string
 	stopWatch stopChan
 
-	stopped  bool
+	// mutex serializes calls to Stop()
+	mutex lock.Mutex
+
+	// stopWait is the wait group to wait for watchers to exit gracefully
 	stopWait sync.WaitGroup
 }
 
@@ -116,12 +121,15 @@ func ListAndWatch(name, prefix string, chanSize int) *Watcher {
 
 // Stop stops a watcher previously created and started with Watch()
 func (w *Watcher) Stop() {
-	if w.stopped {
+	w.mutex.Lock()
+	select {
+	case <-w.stopWatch: // already stopped
+		w.mutex.Unlock()
 		return
+	default:
+		close(w.stopWatch)
 	}
-
-	close(w.stopWatch)
-	log.WithField(fieldWatcher, w).Debug("Stopped watcher...")
-	w.stopped = true
+	w.mutex.Unlock()
+	log.WithField(fieldWatcher, w).Debug("Stopped watcher")
 	w.stopWait.Wait()
 }
