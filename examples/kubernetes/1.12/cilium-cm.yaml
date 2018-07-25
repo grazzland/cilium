@@ -44,3 +44,10 @@ data:
   #   - vxlan (default)
   #   - geneve
   tunnel: "vxlan"
+
+  # Name of the cluster. Only relevant when building a mesh of clusters.
+  cluster-name: default
+
+  # Unique ID of the cluster. Only relevant when building a mesh of clusters.
+  # Must be unique across all connected clusters.
+  #cluster-id: 1
